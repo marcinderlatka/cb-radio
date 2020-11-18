@@ -1,0 +1,356 @@
+
+<html>
+ <head>
+ <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+ 
+  <script src="socket.io.js"></script>
+   <meta charset="utf-8">
+ </head>
+
+
+<body onselectstart="return false;">
+
+<style>
+
+::-webkit-scrollbar {
+  width: 0px;
+}
+::-webkit-scrollbar-thumb {
+  width: 0px;
+}
+
+  ::placeholder {
+  color: white;
+  opacity: 1; 
+}
+  
+   body {
+    
+    overflow-y: hidden;
+    overflow-x: hidden;
+   
+    
+    }
+
+
+ .Div_Peer {
+    position: absolute;
+    border: 0.5px solid;
+    border-radius: 10px 10px 0 10px;
+    border-color: #5b5e61;
+    width: 90%;
+    height: 90%;
+    left: 5%;
+    top: 5%;
+    background-color: rgba(6, 6, 6, 0.7);
+    webkit-box-shadow: 5px 5px 15px 5px #000000;
+    box-shadow: 5px 5px 15px 5px #000000;
+    
+}
+
+
+ .Video_Peer {
+    position: relative;
+    border: 0.5px solid;
+    border-radius: 10px 10px 0 10px;
+    border-color: #5b5e61;
+    width: 80%;
+    height: 40%;
+    margin-left: 10%;
+    margin-top: 2%;
+    webkit-box-shadow: 5px 5px 15px 5px #000000;
+    box-shadow: 5px 5px 15px 5px #000000;
+    
+}
+
+
+@media only screen and (max-height: 600px) {
+.Video_Peer { 
+height: 35%;
+ }
+}
+
+.Button_Call {
+
+    position: relative;
+    width: 50%;
+    height: 5%;
+    margin-top: 2%;
+    margin-left: 25%;
+    font-size: 10px;
+    font-variant: small-caps;
+    color: rgb(188, 197, 197);
+    cursor: pointer;
+    font-weight: bold;
+    border: 0.5px solid #464242;
+    background-color: rgba(0, 0, 0, 0.01);
+    border-radius: 0px 00px 0px 0px;
+    border-left-color: #08f5f5;
+    box-shadow: 5px 5px 15px 5px #000000;
+    outline: none;
+    align-items: center;
+    justify-content: center;
+    display: flex;
+
+
+}
+
+
+</style>
+
+
+
+
+
+ 
+
+
+<script>
+
+
+    socket = io("https://93.115.23.143");
+
+
+
+   //----------------------------------------------------------------------------------------------------------------------------PEER ADDED
+
+
+
+socket.on('connect', function() {
+  
+
+peer_id = socket.id;
+socket.emit("peer_added", peer_id)
+socket.on("peer_added", function(peer_id){
+
+if(peer_id != socket.id & window.remote_peer_id === undefined) {
+remote_peer_id = peer_id
+peer_id = socket.id;
+socket.emit("peer_added", peer_id)
+
+                     //--------------------------------------------------------------------------------------------------------------------DIV PEER
+                     var div_peer = document.createElement("DIV");
+                     div_peer.setAttribute("id", "id_" + remote_peer_id  );
+                     div_peer.className = 'Div_Peer';
+                     document.body.appendChild(div_peer);
+
+                   
+
+
+
+                     //--------------------------------------------------------------------------------------------------------------------VIDEO LOCAL PEER
+                     var video_peer_local = document.createElement("VIDEO");
+                     video_peer_local.setAttribute("id", "localVideo");
+                     video_peer_local.setAttribute("autoplay", true);
+                     video_peer_local.className = 'Video_Peer';
+                     div_peer.appendChild(video_peer_local);
+
+                     //--------------------------------------------------------------------------------------------------------------------VIDEO REMOTE PEER
+                     var video_peer_remote = document.createElement("VIDEO");
+                     video_peer_remote.setAttribute("id", "remoteVideo");
+                     video_peer_remote.setAttribute("autoplay", true);
+                     video_peer_remote.className = 'Video_Peer';
+                     div_peer.appendChild(video_peer_remote);
+
+
+                      //--------------------------------------------------------------------------------------------------------------------BUTTON CALL
+                     var button_call = document.createElement("DIV");
+                     button_call.setAttribute("id",  "button_call" );
+                     button_call.className = 'Button_Call';
+                     button_call.innerHTML = "Call";
+                     div_peer.appendChild(button_call);
+                     
+
+                     //------------------------------------------------------------------------------------------------------------------RTCPeerConnection
+                     const configuration = {'iceServers': [{'urls': 'stun:numb.viagenie.ca:3478'}]}
+                     peerConnection = new webkitRTCPeerConnection(configuration);
+                     
+
+                    //-------------------------------------------------------------------------------------------------------------------VIDEO LOCAL PEER navigator.getUserMedia
+                    
+                     
+                   navigator.getUserMedia(
+    { video: true, audio: true },
+    stream => {
+    localVideo.srcObject = stream;
+    stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+    },
+    error => {
+    alert(error.message);
+    }
+    );
+
+ //----------------------------------------------------------------------------------------------------------------------------------REMOTESTREAM 
+            
+             remoteStream = new webkitMediaStream();
+            remoteVideo.srcObject = remoteStream ;
+            peerConnection.addEventListener('track', async (event) => {
+           remoteStream.addTrack(event.track, remoteStream);
+            console.log(event.track)
+           
+           
+            
+            });
+
+
+                    //--------------------------------------------------------------------------------------------------------------SEND ICE
+         
+           peerConnection.addEventListener('icecandidate', event => {
+           //console.log("SEND" + remote_peer_id +  "--------" + JSON.stringify(event.iceCandidate))
+           if (event.candidate) {
+           var candidate = event.candidate;
+           socket.emit("ice", candidate, remote_peer_id);
+           
+           }
+           });
+          
+
+         $("#button_call").click( function()  {  
+             $("#button_call").hide()  
+             call()
+             });   
+
+
+
+};
+
+
+});
+
+
+});
+
+
+
+   
+
+
+
+
+
+
+
+   
+
+  
+
+
+
+
+ 
+    
+
+
+              
+
+
+              async function call() {         
+
+             //-------------------------------------------------------------------------------------------------ODBIORNIK ANSWER
+             socket.on('answer', function(answer) {
+             console.log("answer")
+             call_answer()
+             async function call_answer() {  
+             remoteDesc = new RTCSessionDescription(answer);
+             await peerConnection.setRemoteDescription(remoteDesc);
+            };
+            });  
+
+
+             
+
+           //------------------------------------------------------------------------------------------------SEND OFFER
+
+
+           send_offer()
+           async function send_offer() {  
+           const offer = await peerConnection.createOffer();
+           await peerConnection.setLocalDescription(offer);
+           await socket.emit("offer", offer, remote_peer_id);
+           }      
+
+
+
+           }
+
+
+
+
+
+
+
+
+             //-----------------------------------------------------------------------------------------------------------ODBIORNIK OFFER
+
+
+
+
+
+
+
+
+             socket.on('offer', function(offer)  {
+
+
+
+ 
+
+
+
+             call_answer()
+             async function call_answer() {  
+
+            //---------------------------------------------------------------------------------------------------------------------------------SEND  ANSWER
+            peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            await socket.emit("answer", answer, remote_peer_id);
+
+           
+           
+
+
+
+            };
+            });  
+
+
+
+
+
+
+
+                 //--------------------------------------------------------------------------------------------------------------------ODBIORNIK ICE
+
+//   
+                 socket.on("ice", function(candidate){
+                 console.log(JSON.stringify(candidate))
+                 if (candidate) {
+                 try {
+                peerConnection.addIceCandidate(candidate);
+                } catch (e) {
+                console.error('Error adding received ice candidate', e);
+                }
+                }
+                });
+
+
+
+
+
+
+
+
+</script>
+
+
+ </body>
+</html>
+
+
+
+
+
+
+
